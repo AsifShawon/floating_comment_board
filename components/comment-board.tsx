@@ -94,14 +94,17 @@ export function CommentBoard() {
           setComments((prevComments) => {
             const newComment = payload.new as Comment;
             // Optionally, fetch its Lottie animation if not already in state
-            if (!emojiAnimations[newComment.emoji]) {
-              fetchEmojiAnimation(newComment.emoji).then((animation) => {
-                setEmojiAnimations((prev) => ({
-                  ...prev,
-                  [newComment.emoji]: animation,
-                }));
-              });
-            }
+            setEmojiAnimations((prevAnimations) => {
+              if (!prevAnimations[newComment.emoji]) {
+                fetchEmojiAnimation(newComment.emoji).then((animation) => {
+                  setEmojiAnimations((prev2) => ({
+                    ...prev2,
+                    [newComment.emoji]: animation,
+                  }));
+                });
+              }
+              return prevAnimations;
+            });
             return [newComment, ...prevComments].slice(0, maxDisplayComments);
           });
         }

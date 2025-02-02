@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
-import { Card, CardContent } from '@/components/ui/card';
-import { QrCode } from 'lucide-react';
-import Image from 'next/image';
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
+import { Card, CardContent } from "@/components/ui/card";
+import { QrCode } from "lucide-react";
+import Image from "next/image";
 
 export function QRCodeDisplay() {
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
 
   useEffect(() => {
     const generateQRCode = async () => {
@@ -31,13 +31,17 @@ export function QRCodeDisplay() {
           <span className="text-xs">Scan to Comment</span>
         </div>
         <div className="flex justify-center">
-          <Image
-            src={qrCodeUrl}
-            alt="QR Code"
-            width={48}
-            height={48}
-            className="w-96 h-96"
-          />
+          {qrCodeUrl ? (
+            <Image
+              src={qrCodeUrl}
+              alt="QR Code"
+              width={48}
+              height={48}
+              className="w-96 h-96"
+            />
+          ) : (
+            <p>Loading QR Code...</p>
+          )}
         </div>
       </CardContent>
     </Card>
