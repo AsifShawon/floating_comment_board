@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { MessageCircle } from "lucide-react";
+import Lottie from "lottie-react";
 
 interface Comment {
   id: string;
@@ -13,43 +14,73 @@ interface Comment {
   created_at: string;
 }
 
-const getEmojiByRating = (rating: number) => {
-  switch (rating) {
-    case 5:
-      return "😄";
-    case 4:
-      return "🙂";
-    case 3:
-      return "😐";
-    case 2:
-      return "🙁";
-    case 1:
-      return "😞";
-    default:
-      return "😐";
+// Fallback static emoji if the animation is not loaded
+const getStaticEmoji = (rating: number) => {
+  const emojiMap: Record<number, string> = {
+    5: "😄",
+    4: "🙂",
+    3: "😐",
+    2: "🙁",
+    1: "😞",
+  };
+  return emojiMap[rating] || "😐";
+};
+
+// Asynchronously fetch the Lottie JSON for a given emoji rating
+const fetchEmojiAnimation = async (rating: number) => {
+  const emojiMap: Record<number, string> = {
+    5: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f603/lottie.json", // 😄
+    4: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f642/lottie.json", // 🙂
+    3: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f610/lottie.json", // 😐
+    2: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f641/lottie.json", // 🙁
+    1: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f61e/lottie.json", // 😞
+  };
+
+  const url = emojiMap[rating] || emojiMap[3];
+  try {
+    const response = await fetch(url);
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch Lottie animation:", error);
+    return null;
   }
 };
 
 export function CommentBoard() {
   const [comments, setComments] = useState<Comment[]>([]);
+  // We'll store the Lottie animations indexed by emoji rating (as string keys)
+  const [emojiAnimations, setEmojiAnimations] = useState<Record<string, any>>({});
   const maxDisplayComments = 12;
-  const cardWidth = 264;
-  const cardSpacing = 2;
-  const totalWidth = cardWidth + cardSpacing;
 
   useEffect(() => {
-    const fetchComments = async () => {
+    const fetchCommentsAndEmojis = async () => {
+      // Fetch comments from Supabase
       const { data } = await supabase
         .from("comments")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(maxDisplayComments);
 
-      if (data) setComments(data);
+      if (data) {
+        setComments(data);
+
+        // Pre-fetch Lottie animations for each unique emoji rating found
+        const emojiData: Record<string, any> = {};
+        await Promise.all(
+          data.map(async (comment: Comment) => {
+            if (!emojiData[comment.emoji]) {
+              const animation = await fetchEmojiAnimation(comment.emoji);
+              emojiData[comment.emoji] = animation;
+            }
+          })
+        );
+        setEmojiAnimations(emojiData);
+      }
     };
 
-    fetchComments();
+    fetchCommentsAndEmojis();
 
+    // Subscribe to realtime updates from Supabase
     const channel = supabase
       .channel("public:comments")
       .on(
@@ -62,6 +93,15 @@ export function CommentBoard() {
         (payload) => {
           setComments((prevComments) => {
             const newComment = payload.new as Comment;
+            // Optionally, fetch its Lottie animation if not already in state
+            if (!emojiAnimations[newComment.emoji]) {
+              fetchEmojiAnimation(newComment.emoji).then((animation) => {
+                setEmojiAnimations((prev) => ({
+                  ...prev,
+                  [newComment.emoji]: animation,
+                }));
+              });
+            }
             return [newComment, ...prevComments].slice(0, maxDisplayComments);
           });
         }
@@ -75,14 +115,17 @@ export function CommentBoard() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gradient-to-b from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-950">
+      {/* Background grid pattern for texture */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
 
+      {/* Dotted guideline across the middle */}
       <div className="absolute top-1/2 w-full border-t-2 border-dotted border-blue-400 dark:border-blue-600 opacity-50" />
 
       <div className="mt-20 relative w-full h-[600px] mx-auto">
         <AnimatePresence>
           {comments.map((comment, index) => {
-            const groupIndex = Math.floor(index / 4); // Grouping comments in sets of 4
+            // Group every four cards so they animate together, with a stagger between groups.
+            const groupIndex = Math.floor(index / 4);
 
             return (
               <motion.div
@@ -92,17 +135,18 @@ export function CommentBoard() {
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{
                   x: {
-                    duration: 30, // Speed of movement
-                    repeat: Infinity, // Keep looping
+                    duration: 30, // Adjust the duration to control speed
+                    repeat: Infinity,
                     ease: "linear",
-                    delay: groupIndex * 10, // Stagger groups
+                    delay: groupIndex * 10, // Groups are staggered by 10 seconds each
                   },
                   opacity: { duration: 0.5 },
                   scale: { duration: 0.5 },
                 }}
                 className="absolute"
                 style={{
-                  top: `calc(50% + ${(index % 4) * 80}px)`, // Stack in groups of 4
+                  // Vertically offset cards in each group by 80px
+                  top: `calc(30% + ${(index % 4) * 130}px)`,
                   left: "100vw",
                 }}
               >
@@ -114,23 +158,17 @@ export function CommentBoard() {
                         {comment.name}
                       </h3>
                     </div>
-                    <motion.div
-  initial={{ scale: 0.5, rotate: -10 }}
-  animate={{
-    scale: [1, 1.4, 1],   // Bounce effect
-    rotate: [-15, 15, -15], // Sway left-right
-    y: [0, -10, 0],  // Move up and down
-  }}
-  transition={{
-    duration: 1.5,   // Faster animation
-    repeat: Infinity,
-    repeatType: "reverse",
-  }}
-  className="text-xl"
->
-  {getEmojiByRating(comment.emoji)}
-</motion.div>
-
+                    {/* Render the animated emoji if available, else a static fallback */}
+                    {emojiAnimations[comment.emoji] ? (
+                      <Lottie
+                        animationData={emojiAnimations[comment.emoji]}
+                        style={{ width: 32, height: 32 }}
+                        loop
+                        autoplay
+                      />
+                    ) : (
+                      <span className="text-xl">{getStaticEmoji(comment.emoji)}</span>
+                    )}
                   </div>
                   <p className="text-gray-600 dark:text-gray-300 text-sm">
                     {comment.comment}
