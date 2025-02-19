@@ -1,10 +1,10 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
-import { MessageCircle } from "lucide-react";
-import Lottie from "lottie-react";
+import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MessageCircle } from 'lucide-react';
+import Lottie from 'lottie-react';
+import { supabase } from '@/lib/supabase';
 
 interface Comment {
   id: string;
@@ -46,7 +46,8 @@ const fetchEmojiAnimation = async (rating: number) => {
   }
 };
 
-export function CommentBoard() {
+// Create a client-side only version of the component
+const CommentBoardClient = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [emojiAnimations, setEmojiAnimations] = useState<Record<string, any>>({});
   const maxDisplayComments = 12;
@@ -106,7 +107,6 @@ export function CommentBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -214,6 +214,11 @@ export function CommentBoard() {
       </div>
     </div>
   );
-}
+};
+
+// Export a dynamic component with SSR disabled
+export const CommentBoard = dynamic(() => Promise.resolve(CommentBoardClient), {
+  ssr: false
+});
 
 export default CommentBoard;
