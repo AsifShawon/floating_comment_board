@@ -1,4 +1,4 @@
-import { CommentBoard } from '@/components/comment-board';
+import { CommentBoard } from '@/components/CommentBoard';
 import { QRCodeDisplay } from '@/components/qr-code-display';
 
 export default function Home() {
