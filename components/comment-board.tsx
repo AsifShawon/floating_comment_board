@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import Lottie from 'lottie-react';
 import { supabase } from '@/lib/supabase';
+// Import the boat animation directly
+import boatAnimation from '@/components/boat.json';
 
 interface Comment {
   id: string;
@@ -14,7 +16,7 @@ interface Comment {
   created_at: string;
 }
 
-// Fallback static emoji if the animation is not loaded
+// Rest of your existing helper functions...
 const getStaticEmoji = (rating: number) => {
   const emojiMap: Record<number, string> = {
     5: "😄",
@@ -26,7 +28,6 @@ const getStaticEmoji = (rating: number) => {
   return emojiMap[rating] || "😐";
 };
 
-// Asynchronously fetch the Lottie JSON for a given emoji rating
 const fetchEmojiAnimation = async (rating: number) => {
   const emojiMap: Record<number, string> = {
     5: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f603/lottie.json",
@@ -46,7 +47,6 @@ const fetchEmojiAnimation = async (rating: number) => {
   }
 };
 
-// Create a client-side only version of the component
 const CommentBoardClient = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [emojiAnimations, setEmojiAnimations] = useState<Record<string, any>>({});
@@ -135,8 +135,6 @@ const CommentBoardClient = () => {
           ))}
         </div>
       </div>
-
-      {/* Mountains */}
       <div className="absolute bottom-1/2 w-full">
         <svg viewBox="0 0 1440 320" className="w-full">
           <path
@@ -166,29 +164,18 @@ const CommentBoardClient = () => {
               className="absolute"
             >
               <div className="relative">
-                {/* Larger Boat */}
-                <svg
-                  width="380"
-                  height="220"
-                  viewBox="0 0 280 120"
-                  className="absolute -left-4 top-2"
-                >
-                  {/* Hull - wider to match comment card */}
-                  <path
-                    d="M20,80 L260,80 L240,110 L40,110 Z"
-                    fill="#8B4513"
-                    className="drop-shadow-lg"
+                {/* Boat Animation */}
+                <div className="absolute -left-4 -top-20 w-[200px]">
+                  <Lottie
+                    animationData={boatAnimation}
+                    loop
+                    autoplay
+                    style={{ width: '100%', height: '100%' }}
                   />
-                  {/* Mast - taller and positioned proportionally */}
-                  <path
-                    d="M120,10 L120,80 L160,80 L160,10 C160,10 145,0 140,0 C135,0 120,10 120,10"
-                    fill="#D2B48C"
-                    className="drop-shadow-lg"
-                  />
-                </svg>
+                </div>
 
-                {/* Comment Card - adjusted position to sit on the boat */}
-                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg w-64">
+                {/* Comment Card */}
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg w-64 relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <MessageCircle className="w-4 h-4 text-blue-500" />
