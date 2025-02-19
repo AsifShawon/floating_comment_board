@@ -1,13 +1,13 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle } from 'lucide-react';
-import Lottie from 'lottie-react';
-import { supabase } from '@/lib/supabase';
-// Import the boat animation directly
-import boatAnimation from '@/components/boat.json';
+import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle } from "lucide-react";
+import Lottie from "lottie-react";
+import boatAnimation from "@/components/boat.json";
+import { supabase } from "@/lib/supabase";
 
+// Define the Comment interface
 interface Comment {
   id: string;
   name: string;
@@ -16,7 +16,7 @@ interface Comment {
   created_at: string;
 }
 
-// Rest of your existing helper functions...
+// Helper function to get static emojis
 const getStaticEmoji = (rating: number) => {
   const emojiMap: Record<number, string> = {
     5: "😄",
@@ -28,30 +28,36 @@ const getStaticEmoji = (rating: number) => {
   return emojiMap[rating] || "😐";
 };
 
-const fetchEmojiAnimation = async (rating: number) => {
-  const emojiMap: Record<number, string> = {
+// Preload all possible emoji animations
+const preloadEmojiAnimations = async () => {
+  const emojiMap = {
     5: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f603/lottie.json",
     4: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f642/lottie.json",
     3: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f610/lottie.json",
     2: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f641/lottie.json",
     1: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f61e/lottie.json",
   };
-
-  const url = emojiMap[rating] || emojiMap[3];
-  try {
-    const response = await fetch(url);
-    return await response.json();
-  } catch (error) {
-    console.error("Failed to fetch Lottie animation:", error);
-    return null;
-  }
+  const animations: Record<string, any> = {};
+  await Promise.all(
+    Object.entries(emojiMap).map(async ([rating, url]) => {
+      try {
+        const response = await fetch(url);
+        animations[rating] = await response.json();
+      } catch (error) {
+        console.error(`Failed to fetch animation for rating ${rating}:`, error);
+      }
+    })
+  );
+  return animations;
 };
 
+// Main Comment Board Component
 const CommentBoardClient = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [emojiAnimations, setEmojiAnimations] = useState<Record<string, any>>({});
   const maxDisplayComments = 12;
 
+  // Fetch comments and preload emoji animations
   useEffect(() => {
     const fetchCommentsAndEmojis = async () => {
       const { data } = await supabase
@@ -63,21 +69,15 @@ const CommentBoardClient = () => {
       if (data) {
         setComments(data);
 
-        const emojiData: Record<string, any> = {};
-        await Promise.all(
-          data.map(async (comment: Comment) => {
-            if (!emojiData[comment.emoji]) {
-              const animation = await fetchEmojiAnimation(comment.emoji);
-              emojiData[comment.emoji] = animation;
-            }
-          })
-        );
-        setEmojiAnimations(emojiData);
+        // Preload emoji animations
+        const preloadedAnimations = await preloadEmojiAnimations();
+        setEmojiAnimations(preloadedAnimations);
       }
     };
 
     fetchCommentsAndEmojis();
 
+    // Subscribe to real-time updates
     const channel = supabase
       .channel("public:comments")
       .on(
@@ -88,24 +88,17 @@ const CommentBoardClient = () => {
           table: "comments",
         },
         (payload) => {
+          const newComment = payload.new as Comment;
           setComments((prevComments) => {
-            const newComment = payload.new as Comment;
-            if (!emojiAnimations[newComment.emoji]) {
-              fetchEmojiAnimation(newComment.emoji).then((animation) => {
-                setEmojiAnimations((prev) => ({
-                  ...prev,
-                  [newComment.emoji]: animation,
-                }));
-              });
-            }
             return [newComment, ...prevComments].slice(0, maxDisplayComments);
           });
         }
       )
       .subscribe();
 
+    // Cleanup subscription on unmount
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, []);
 
@@ -113,10 +106,10 @@ const CommentBoardClient = () => {
     <div className="relative w-full h-screen overflow-hidden">
       {/* Sunset Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-orange-400 via-red-500 to-purple-900" />
-      
+
       {/* Sun */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-yellow-200 blur-sm" />
-      
+
       {/* Ocean */}
       <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-b from-teal-400 to-blue-900">
         {/* Reflections */}
@@ -129,12 +122,14 @@ const CommentBoardClient = () => {
                 width: `${Math.random() * 100 + 50}px`,
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                transform: 'rotate(-45deg)',
+                transform: "rotate(-45deg)",
               }}
             />
           ))}
         </div>
       </div>
+
+      {/* Wave SVG */}
       <div className="absolute bottom-1/2 w-full">
         <svg viewBox="0 0 1440 320" className="w-full">
           <path
@@ -150,8 +145,8 @@ const CommentBoardClient = () => {
           {comments.map((comment, index) => (
             <motion.div
               key={comment.id}
-              initial={{ x: "100vw", y: `${50 + (index * 15)}%` }}
-              animate={{ x: "-100vw", y: `${50 + (index * 15)}%` }}
+              initial={{ x: "100vw", y: `${50 + index * 15}%` }}
+              animate={{ x: "-100vw", y: `${50 + index * 15}%` }}
               exit={{ opacity: 0 }}
               transition={{
                 x: {
@@ -170,7 +165,7 @@ const CommentBoardClient = () => {
                     animationData={boatAnimation}
                     loop
                     autoplay
-                    style={{ width: '100%', height: '100%' }}
+                    style={{ width: "100%", height: "100%" }}
                   />
                 </div>
 
@@ -205,7 +200,7 @@ const CommentBoardClient = () => {
 
 // Export a dynamic component with SSR disabled
 export const CommentBoard = dynamic(() => Promise.resolve(CommentBoardClient), {
-  ssr: false
+  ssr: false,
 });
 
 export default CommentBoard;
