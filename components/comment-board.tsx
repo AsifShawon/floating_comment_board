@@ -30,6 +30,8 @@ const getStaticEmoji = (rating: number) => {
 
 // Preload all possible emoji animations
 const preloadEmojiAnimations = async () => {
+  if (typeof document === "undefined") return {}; // Ensure this runs only on the client side
+
   const emojiMap = {
     5: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f603/lottie.json",
     4: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f642/lottie.json",
